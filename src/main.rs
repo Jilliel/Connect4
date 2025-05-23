@@ -1,6 +1,8 @@
 //! Ce fichier a pour but d'implémenter le jeu Connect4
 //! ainsi qu'un algorithme AlphaBeta comme adversaire.
 
+use std::io;
+
 /// Définit ici des variables utiles au Connect4.
 const WIDTH: usize = 7;
 const HEIGHT: usize = 6;
@@ -67,7 +69,7 @@ fn terminal(grid: &[[i32; HEIGHT]; WIDTH], col: usize, row: usize) -> bool {
 
 /// Affiche la grille dans la console.
 /// Ne renvoie rien.
-fn human(grid: &[[i32; HEIGHT]; WIDTH]) {
+fn show(grid: &[[i32; HEIGHT]; WIDTH]) {
     // Affiche la grille
     for row in 0..HEIGHT {
         for col in 0..WIDTH {
@@ -83,18 +85,43 @@ fn human(grid: &[[i32; HEIGHT]; WIDTH]) {
     println!("\n")
 }
 
+/// Demande un coup à l'utilisateur.
+/// Renvoie l'indice
+fn human() -> usize {
+    loop {
+        let mut buffer: String = String::new();
+        io::stdin()
+        .read_line(&mut buffer)
+        .expect("System Failure");
+        
+        let choice: i32 = match buffer.trim().parse() {
+            Ok(num) => num,
+            Err(_) => {
+                println!("Column id must be a number.");
+                continue
+            },
+        };
+
+        if 0 <= choice && choice < WIDTH as i32 {
+            return choice as usize;
+        } else {
+            println!("Column id must be in [0; WIDTH-1] range with WIDTH = {WIDTH}.");
+        }
+    }
+}
+
 /// Joue une partie.
 /// Renvoie le vainqueur.
 fn game() -> i32 {
     let mut grid: [[i32 ; HEIGHT] ; WIDTH] = [[0 ; HEIGHT] ; WIDTH];
     let player: i32 = 1;
-    let col: usize = 2;
+    let col: usize = human();
     let row: usize = possible(&grid, col);
     play(&mut grid, col, row, player);
-    human(&grid);
+    show(&grid);
     terminal(&grid, col, row);
     unplay(&mut grid, col, row);
-    human(&grid);
+    show(&grid);
     return 1;
 }
 
