@@ -1,6 +1,5 @@
 //! Ce fichier a pour but d'implémenter le jeu Connect4
 //! ainsi qu'un algorithme AlphaBeta comme adversaire.
-
 use std::io;
 
 /// Définit ici des variables utiles au Connect4.
@@ -9,6 +8,12 @@ const HEIGHT: usize = 6;
 const NULL: i32 = 0;
 // Droite | Haut | Diagonale pi/4 | Diagonale -pi/4
 const SHIFT: [(i32, i32) ; 4] = [(1, 0), (0, 1), (1, 1), (1, -1)];
+
+/// Fonction renvoyant le joueur suivant.
+/// Renvoie un int32.
+fn nextplayer(player: i32) -> i32 {
+    3 - player
+}
 
 /// Fonction permettant d'obtenir la ligne jouable dans la colonne donnée.
 /// Renvoie HEIGHT si aucune case n'est disponible dans cette colonne.
@@ -112,17 +117,30 @@ fn human() -> usize {
 
 /// Joue une partie.
 /// Renvoie le vainqueur.
-fn game() -> i32 {
+fn game() {
     let mut grid: [[i32 ; HEIGHT] ; WIDTH] = [[0 ; HEIGHT] ; WIDTH];
-    let player: i32 = 1;
-    let col: usize = human();
-    let row: usize = possible(&grid, col);
-    play(&mut grid, col, row, player);
-    show(&grid);
-    terminal(&grid, col, row);
-    unplay(&mut grid, col, row);
-    show(&grid);
-    return 1;
+    let mut player: i32 = 1;
+    loop {
+        // Affiche la grille.
+        show(&grid);
+        let col: usize = human();
+        let row: usize = possible(&grid, col);
+        // On regarde si la colonne est jouable.
+        if row == HEIGHT {
+            println!("Column id is not permitted.");
+            println!("Player {player} has lost the game.");
+            break;
+        }
+        play(&mut grid, col, row, player);
+        // On regarde si la position est terminale.
+        if terminal(&grid, col, row) {
+            show(&grid);
+            println!("Player {player} has won the game.");
+            break;
+        } 
+        // On change de joueur.
+        player = nextplayer(player);
+    }
 }
 
 /// Fonction principale, lance une partie. Ne renvoie rien.
