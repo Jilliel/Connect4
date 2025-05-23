@@ -1,13 +1,13 @@
 //! Ce fichier a pour but d'implémenter le jeu Connect4
 //! ainsi qu'un algorithme AlphaBeta comme adversaire.
-use std::io;
 
 /// Définit ici des variables utiles au Connect4.
 const WIDTH: usize = 7;
 const HEIGHT: usize = 6;
 const NULL: i32 = 0;
-// Droite | Haut | Diagonale pi/4 | Diagonale -pi/4
 const SHIFT: [(i32, i32) ; 4] = [(1, 0), (0, 1), (1, 1), (1, -1)];
+/// Définit ici des variables pour le MinMax.
+const INFINITY: i32 = 100000;
 
 /// Fonction renvoyant le joueur suivant.
 /// Renvoie un int32.
@@ -91,7 +91,7 @@ fn show(grid: &[[i32; HEIGHT]; WIDTH]) {
 }
 
 /// Demande un coup à l'utilisateur.
-/// Renvoie l'indice
+/// Renvoie un usize.
 fn human() -> usize {
     loop {
         let mut buffer: String = String::new();
@@ -112,6 +112,61 @@ fn human() -> usize {
         } else {
             println!("Column id must be in [0; WIDTH-1] range with WIDTH = {WIDTH}.");
         }
+    }
+}
+
+/// Fonction évaluant la grille passée en argument.
+/// Renvoie un int32
+fn evaluate(grid: &[[i32; HEIGHT]; WIDTH], player: i32) -> i32 {
+    return 0;
+}
+
+/// Algorithme MinMax pour le puissance4.
+/// Renvoie un int32.
+fn minmax(grid: &mut [[i32; HEIGHT]; WIDTH], current: i32, player: i32, depth: i32) -> i32 {
+    if depth == 0 {
+        // Cas où on est sur une feuille.
+        return evaluate(grid, player);
+    } else if current == player {
+        // Cas où on cherche le maximum.
+        let mut scoremax: i32 = 0;
+        for col in 0..WIDTH {
+            // On regarde si cette colonne est jouable
+            let row: usize = possible(grid, col);
+            if row == HEIGHT { continue; }
+            // On joue le coup.
+            play(grid, col, row, current);
+            // On calcule le score.
+            if terminal(grid, col, row) {
+                unplay(grid, col, row);
+                return INFINITY;
+            }
+            let score: i32 = minmax(grid, nextplayer(current), player, depth-1);
+            if score > scoremax {scoremax = score}
+            // On annule le coup.
+            unplay(grid, col, row);
+        }
+        return scoremax;
+    } else {
+        // Cas où on cherche le minimum.
+        let mut scoremin: i32 = 0;
+        for col in 0..WIDTH {
+            // On regarde si cette colonne est jouable
+            let row: usize = possible(grid, col);
+            if row == HEIGHT { continue; }
+            // On joue le coup.
+            play(grid, col, row, current);
+            // On calcule le score.
+            if terminal(grid, col, row) {
+                unplay(grid, col, row);
+                return -INFINITY;
+            }
+            let score: i32 = minmax(grid, nextplayer(current), player, depth-1);
+            if score < scoremin {scoremin = score} 
+            // On annule le coup.
+            unplay(grid, col, row);
+        }
+        return scoremin;
     }
 }
 
