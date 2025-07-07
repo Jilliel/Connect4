@@ -1,204 +1,207 @@
-//! Ce fichier a pour but d'implémenter le jeu Connect4
-//! ainsi qu'un algorithme AlphaBeta comme adversaire.
+use std::{i32, u64};
+use std::io::{self, Write};
 
-/// Définit ici des variables utiles au Connect4.
-const WIDTH: usize = 7;
-const HEIGHT: usize = 6;
-const NULL: i32 = 0;
-const SHIFT: [(i32, i32) ; 4] = [(1, 0), (0, 1), (1, 1), (1, -1)];
-/// Définit ici des variables pour le MinMax.
-const INFINITY: i32 = 100000;
+const SHIFTS: [u8; 4] = [1, 6, 7, 8];
+const FULLBOARD: u64 = 279258638311359;
+const SUP: i32 =   1_000_000;
+const INF: i32 = - 1_000_000;
+const MAXDEPTH: u8 = 7;
 
-/// Fonction renvoyant le joueur suivant.
-/// Renvoie un int32.
-fn nextplayer(player: i32) -> i32 {
-    3 - player
+#[derive(Copy, Clone, Debug)]
+struct Board {
+    player1: u64,
+    player2: u64,
+    heights: [u8 ; 7]
 }
 
-/// Fonction permettant d'obtenir la ligne jouable dans la colonne donnée.
-/// Renvoie HEIGHT si aucune case n'est disponible dans cette colonne.
-/// Renvoie un int32.
-fn possible(grid: &[[i32; HEIGHT]; WIDTH], col: usize) -> usize{
-    for index in 0..HEIGHT {
-        if grid[col][index] == NULL {
-            return index;
+impl Board {
+    fn new() -> Self {
+        Board {
+            player1: 0,
+            player2: 0,
+            heights: [0 ; 7]
         }
-    };
-    HEIGHT
-}
+    }
 
-/// Fonction permettant de jouer un coup sur la colonne donnée en argument.
-/// Renvoie l'indice sur lequel le coup a pû être possible.
-fn play(grid: &mut [[i32; HEIGHT]; WIDTH], col: usize, row: usize, player: i32) {
-    grid[col][row] = player;
-}
+    fn is_valid(&self, col: u8) -> bool {
+        self.heights[col as usize] < 6
+    }
 
-/// Enlève le jeton à la colonne et à la ligne passées en argument. 
-/// Ne renvoie rien.
-fn unplay(grid: &mut [[i32; HEIGHT]; WIDTH], col: usize, row: usize) {
-    grid[col][row] = NULL;
-}
-
-/// Indique si la case représentée par (colonne, ligne) est dans la grille.
-/// Renvoie un booléen.
-fn valid(col: i32, row: i32) -> bool {
-    0 <= col && col < WIDTH as i32 && 0 <= row && row < HEIGHT as i32
-}
-
-/// Indique si la grille est une position terminale dans le jeu.
-/// Renvoie un booléen.
-fn terminal(grid: &[[i32; HEIGHT]; WIDTH], col: usize, row: usize) -> bool {
-    let player: i32 = grid[col][row];
-    for (dc, dr) in SHIFT {
-        let mut streak: i32 = 0;
-        for k in -3..4 {
-            let newcol: i32 = col as i32 + k * dc;
-            let newrow: i32 = row as i32 + k * dr;
-            if !valid(newcol, newrow) {
-                streak = 0;
-                continue;
-            } else if grid[newcol as usize][newrow as usize] != player {
-                streak = 0;
-                continue;
-            } else {
-                streak += 1;
-            }
-            // On vérifie si 4 jetons sont alignés.
-            if streak == 4 {
+    fn is_defeated(&self, botplayer: bool) -> bool {
+        let current: u64 = if botplayer {self.player1} else {self.player2};
+        for shift in SHIFTS.iter() {
+            let con2: u64 = current & (current >> shift);
+            let con4: u64 = con2 & (con2 >> 2*shift);
+            if con4 > 0 {
                 return true;
             }
-        }
-    }    
-    false
-}
-
-/// Affiche la grille dans la console.
-/// Ne renvoie rien.
-fn show(grid: &[[i32; HEIGHT]; WIDTH]) {
-    // Affiche la grille
-    for row in 0..HEIGHT {
-        for col in 0..WIDTH {
-            let player: i32 = grid[col][HEIGHT-1-row];
-            print!("{player} ")
-        }
-        println!()
-    }
-    // Affiche les colonnes
-    for col in 0..WIDTH {
-        print!("{col} ")
-    } 
-    println!("\n")
-}
-
-/// Demande un coup à l'utilisateur.
-/// Renvoie un usize.
-fn human() -> usize {
-    loop {
-        let mut buffer: String = String::new();
-        io::stdin()
-        .read_line(&mut buffer)
-        .expect("System Failure");
-        
-        let choice: i32 = match buffer.trim().parse() {
-            Ok(num) => num,
-            Err(_) => {
-                println!("Column id must be a number.");
-                continue
-            },
         };
+        false
+    }
 
-        if 0 <= choice && choice < WIDTH as i32 {
-            return choice as usize;
+    fn is_draw(&self) -> bool {
+        (self.player1 | self.player2) == FULLBOARD
+    }
+
+    fn play(&mut self, col: u8, botplayer: bool) {
+        let row: u8 = self.heights[col as usize];
+        if row >= 6 { 
+            println!("Tentative de placement de pion illégale");
+            return; }
+        if botplayer {
+            self.player2 = self.player2 | (1 << 7 * col + row);
         } else {
-            println!("Column id must be in [0; WIDTH-1] range with WIDTH = {WIDTH}.");
+            self.player1 = self.player1 | (1 << 7 * col + row);
         }
+        self.heights[col as usize] = row + 1;
     }
-}
 
-/// Fonction évaluant la grille passée en argument.
-/// Renvoie un int32
-fn evaluate(grid: &[[i32; HEIGHT]; WIDTH], player: i32) -> i32 {
-    return 0;
-}
-
-/// Algorithme MinMax pour le puissance4.
-/// Renvoie un int32.
-fn minmax(grid: &mut [[i32; HEIGHT]; WIDTH], current: i32, player: i32, depth: i32) -> i32 {
-    if depth == 0 {
-        // Cas où on est sur une feuille.
-        return evaluate(grid, player);
-    } else if current == player {
-        // Cas où on cherche le maximum.
-        let mut scoremax: i32 = 0;
-        for col in 0..WIDTH {
-            // On regarde si cette colonne est jouable
-            let row: usize = possible(grid, col);
-            if row == HEIGHT { continue; }
-            // On joue le coup.
-            play(grid, col, row, current);
-            // On calcule le score.
-            if terminal(grid, col, row) {
-                unplay(grid, col, row);
-                return INFINITY;
-            }
-            let score: i32 = minmax(grid, nextplayer(current), player, depth-1);
-            if score > scoremax {scoremax = score}
-            // On annule le coup.
-            unplay(grid, col, row);
+    fn unplay(&mut self, col: u8, botplayer: bool) {
+        let row: u8 = self.heights[col as usize];
+        if row == 0 { 
+            println!("Tentative de retrait de pion illégale");
+            return; 
         }
-        return scoremax;
-    } else {
-        // Cas où on cherche le minimum.
-        let mut scoremin: i32 = 0;
-        for col in 0..WIDTH {
-            // On regarde si cette colonne est jouable
-            let row: usize = possible(grid, col);
-            if row == HEIGHT { continue; }
-            // On joue le coup.
-            play(grid, col, row, current);
-            // On calcule le score.
-            if terminal(grid, col, row) {
-                unplay(grid, col, row);
-                return -INFINITY;
-            }
-            let score: i32 = minmax(grid, nextplayer(current), player, depth-1);
-            if score < scoremin {scoremin = score} 
-            // On annule le coup.
-            unplay(grid, col, row);
+        if botplayer {
+            self.player2 = self.player2 & (u64::MAX ^ 1u64 << 7 * col + row - 1);
+        } else {
+            self.player1 = self.player1 & (u64::MAX ^ 1u64 << 7 * col + row - 1);
         }
-        return scoremin;
+        self.heights[col as usize] = row-1; 
     }
+
+    fn display(&self) {
+        for row in (0..6).rev() { 
+            for col in 0..7 {
+                let idx = col * 7 + row; 
+                let mask = 1u64 << idx;
+                let ch = if (self.player1 & mask) != 0 {
+                    'X' 
+                } else if (self.player2 & mask) != 0 {
+                    '0' 
+                } else {
+                    '.' 
+                };
+                print!("{} ", ch);
+            }
+            println!();
+        }
+        println!("0 1 2 3 4 5 6"); 
+    }
+
 }
 
-/// Joue une partie.
-/// Renvoie le vainqueur.
-fn game() {
-    let mut grid: [[i32 ; HEIGHT] ; WIDTH] = [[0 ; HEIGHT] ; WIDTH];
-    let mut player: i32 = 1;
+fn get_score(board: Board) -> i32 {
+    // La grille du player 1 (humain) bloque le bot
+    let ownboard: u64 = board.player1 ^ FULLBOARD; 
+    // La grille du player 2 (bot) bloque l'humain
+    let advboard: u64 = board.player2 ^ FULLBOARD;
+    let mut score: i32 = 0;
+    for shift in SHIFTS.iter() {
+        let owncon2: u64 = ownboard & (ownboard >> shift);
+        let owncon4: u64 = owncon2 & (owncon2 >> 2*shift);
+        score += owncon4.count_ones() as i32;
+        let advcon2: u64 = advboard & (advboard >> shift);
+        let advcon4: u64 = advcon2 & (advcon2 >> 2*shift);
+        score -= advcon4.count_ones() as i32;
+    }
+    score
+}
+
+fn human(board: &Board) -> u8 {
+    board.display();
     loop {
-        // Affiche la grille.
-        show(&grid);
-        let col: usize = human();
-        let row: usize = possible(&grid, col);
-        // On regarde si la colonne est jouable.
-        if row == HEIGHT {
-            println!("Column id is not permitted.");
-            println!("Player {player} has lost the game.");
-            break;
+        print!("Choisissez une colonne (0-6) : ");
+        io::stdout().flush().unwrap(); // Force l'affichage immédiat
+        let mut input = String::new();
+        if io::stdin().read_line(&mut input).is_ok() {
+            if let Ok(num) = input.trim().parse::<u8>() {
+                if num <= 6 {
+                    return num;
+                }
+            }
         }
-        play(&mut grid, col, row, player);
-        // On regarde si la position est terminale.
-        if terminal(&grid, col, row) {
-            show(&grid);
-            println!("Player {player} has won the game.");
-            break;
-        } 
-        // On change de joueur.
-        player = nextplayer(player);
+        println!("Entrée invalide. Veuillez entrer un nombre entre 0 et 6.");
     }
 }
 
-/// Fonction principale, lance une partie. Ne renvoie rien.
+fn bot(board: &Board) -> u8 {
+    let mut copyboard = *board;
+    let (col, _score) = minmax(&mut copyboard, true, MAXDEPTH);
+    col
+}
+
+fn minmax(board: &mut Board, botplayer: bool, depth: u8) -> (u8, i32) {
+
+    if board.is_defeated(botplayer) {
+        let score: i32 =  if botplayer {INF} else {SUP};
+        return (0, score);
+    } else if board.is_draw() || depth == 0 {
+        let score: i32 = get_score(*board);
+        return (0, score);
+    }
+
+    if botplayer {
+        // Cas où l'on maximise
+        let mut column: u8 = 0;
+        let mut score: i32 = INF;
+    
+        for col in 0..7 {
+            if board.is_valid(col) {
+                board.play(col, true);
+                let (_c, s) = minmax(board, false, depth-1);
+                board.unplay(col, true);
+                                
+                if s > score {
+                    column = col;
+                    score = s;
+                }
+            }
+        }
+        return (column, score);
+        
+    } else {
+        // Cas où l'on minimise
+        let mut column: u8 = 0;
+        let mut score: i32 = SUP;
+
+        for col in 0..7 {
+            if board.is_valid(col) {
+                board.play(col, false);
+                let (_c, s) = minmax(board, true, depth-1);
+                board.unplay(col, false);
+
+                if s < score {
+                    column = col;
+                    score = s;
+                }
+            }
+        }
+        return (column, score);
+    }
+}
+
+fn game() {
+    let mut board: Board = Board::new();
+    let mut opponent: bool = false;
+    loop {
+        let col: u8;
+        if opponent {
+            col = bot(&board);
+            println!("Bot puts a coin in the column {}.\n", col)
+        } else {
+            col = human(&board);
+            println!()
+        }
+        board.play(col, opponent);
+        if board.is_draw() || board.is_defeated(!opponent) {
+            board.display();
+            break;
+        }
+        opponent = !opponent;
+    }
+}
+
 fn main() {
-    game();
+    game()
 }
