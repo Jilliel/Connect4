@@ -91,7 +91,7 @@ impl Board {
 
 }
 
-fn get_score(board: Board) -> i32 {
+fn evaluation(board: Board) -> i32 {
     // La grille du player 1 (humain) bloque le bot
     let ownboard: u64 = board.player1 ^ FULLBOARD; 
     // La grille du player 2 (bot) bloque l'humain
@@ -137,7 +137,7 @@ fn minmax(board: &mut Board, botplayer: bool, depth: u8) -> (u8, i32) {
         let score: i32 =  if botplayer {INF} else {SUP};
         return (0, score);
     } else if board.is_draw() || depth == 0 {
-        let score: i32 = get_score(*board);
+        let score: i32 = evaluation(*board);
         return (0, score);
     }
 
