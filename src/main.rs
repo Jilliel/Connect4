@@ -144,7 +144,7 @@ fn minmax(board: &mut Board, botplayer: bool, depth: u8) -> (u8, i32) {
     if botplayer {
         // Cas où l'on maximise
         let mut column: u8 = 0;
-        let mut score: i32 = INF;
+        let mut score: i32 = i32::MIN;
     
         for col in 0..7 {
             if board.is_valid(col) {
@@ -163,7 +163,7 @@ fn minmax(board: &mut Board, botplayer: bool, depth: u8) -> (u8, i32) {
     } else {
         // Cas où l'on minimise
         let mut column: u8 = 0;
-        let mut score: i32 = SUP;
+        let mut score: i32 = i32::MAX;
 
         for col in 0..7 {
             if board.is_valid(col) {
