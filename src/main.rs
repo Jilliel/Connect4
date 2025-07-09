@@ -93,17 +93,28 @@ impl Board {
 
 fn evaluation(board: Board) -> i32 {
     // La grille du player 1 (humain) bloque le bot
-    let ownboard: u64 = board.player1 ^ FULLBOARD; 
+    let ownslot: u64 = board.player1 ^ FULLBOARD; 
     // La grille du player 2 (bot) bloque l'humain
-    let advboard: u64 = board.player2 ^ FULLBOARD;
+    let advslot: u64 = board.player2 ^ FULLBOARD;
     let mut score: i32 = 0;
     for shift in SHIFTS.iter() {
-        let owncon2: u64 = ownboard & (ownboard >> shift);
-        let owncon4: u64 = owncon2 & (owncon2 >> 2*shift);
-        score += owncon4.count_ones() as i32;
-        let advcon2: u64 = advboard & (advboard >> shift);
-        let advcon4: u64 = advcon2 & (advcon2 >> 2*shift);
-        score -= advcon4.count_ones() as i32;
+        // Détermine les places disponibles pour des alignements de 4.
+        let own2slot: u64 = ownslot & (ownslot >> shift);
+        let own4slot: u64 = own2slot & (own2slot >> 2*shift);
+        // Détermine les alignements existants de 2 et 3.
+        let own2con: u64 = board.player2 & (board.player2 >> shift) & own4slot;
+        let own3con: u64 = own2con & (board.player2 >> 2*shift) & own4slot;
+        // Modifie le score selon la longueur de l'alignement
+        score += 20 * own2con.count_ones() as i32;
+        score += 50 * own3con.count_ones() as i32;
+
+        // Répète la procédure pour l'adversaire
+        let adv2slot: u64 = advslot & (advslot >> shift);
+        let adv4slot: u64 = adv2slot & (adv2slot >> 2*shift);
+        let adv2con: u64 = board.player1 & (board.player1 >> shift) & adv4slot;
+        let adv3con: u64 = adv2con & (board.player1 >> 2*shift) & adv4slot;
+        score -= 20 * adv2con.count_ones() as i32;
+        score -= 50 * adv3con.count_ones() as i32;
     }
     score
 }
