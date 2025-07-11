@@ -105,7 +105,7 @@ fn evaluation(board: Board) -> i32 {
         let own2con: u64 = board.player2 & (board.player2 >> shift) & own4slot;
         let own3con: u64 = own2con & (board.player2 >> 2*shift) & own4slot;
         // Modifie le score selon la longueur de l'alignement
-        score += 20 * own2con.count_ones() as i32;
+        score += 15 * own2con.count_ones() as i32;
         score += 50 * own3con.count_ones() as i32;
 
         // Répète la procédure pour l'adversaire
@@ -113,7 +113,7 @@ fn evaluation(board: Board) -> i32 {
         let adv4slot: u64 = adv2slot & (adv2slot >> 2*shift);
         let adv2con: u64 = board.player1 & (board.player1 >> shift) & adv4slot;
         let adv3con: u64 = adv2con & (board.player1 >> 2*shift) & adv4slot;
-        score -= 20 * adv2con.count_ones() as i32;
+        score -= 15 * adv2con.count_ones() as i32;
         score -= 50 * adv3con.count_ones() as i32;
     }
     score
@@ -145,7 +145,7 @@ fn bot(board: &Board) -> u8 {
 fn minmax(board: &mut Board, botplayer: bool, depth: u8) -> (u8, i32) {
 
     if board.is_defeated(botplayer) {
-        let score: i32 =  if botplayer {INF} else {SUP};
+        let score: i32 =  if botplayer {INF} else {SUP + depth as i32};
         return (0, score);
     } else if board.is_draw() || depth == 0 {
         let score: i32 = evaluation(*board);
